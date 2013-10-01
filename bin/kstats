@@ -33,10 +33,10 @@ def CheckArgs():
 
     if args.i is not None:
         if not os.path.isfile(args.i):
-            print "ERROR: input     file %s does not exist" % (args.i)
+            print "ERROR: input file %s does not exist" % (args.i)
             sys.exit(1)
         else:
-            with open(sys.argv[1], 'r') as file:
+            with open(args.i, 'r') as file:
                 hvlist = list(file.read().splitlines())
                 return hvlist
 
@@ -115,9 +115,9 @@ def GetActiveVMs(connlist):
             vm_active_max_mem = infos[1]
             vm_active_max_vcpu = infos[3]
             vm_active_stats['vm_active_max_mem_total'] += vm_active_max_mem
-            vm_active_stats['vm_active_max_vcpu_total'] += vm_active_max_vcpu
-
-    vm_active_stats['vm_active_total'] = len(conn.listDomainsID())
+            vm_active_stats['vm_active_max_vcpu_total'] += vm_active_max_vcpu    
+        vm_active_stats['vm_active_total'] += len(conn.listDomainsID())
+    
     return vm_active_stats
 
 
@@ -149,8 +149,8 @@ def GetInactiveVMs(connlist):
                 'vm_inactive_max_mem_total'] += vm_inactive_max_mem
             vm_inactive_stats[
                 'vm_inactive_max_vcpu_total'] += vm_inactive_max_vcpu
-
-    vm_inactive_stats['vm_inactive_total'] = len(inactive_vms)
+        vm_inactive_stats['vm_inactive_total'] += len(inactive_vms)
+    
     return vm_inactive_stats
 
 
@@ -180,10 +180,12 @@ def PrintReport(hv_stats, vm_active_stats, vm_inactive_stats):
     vm_max_vcpu_total_percent = (
         vm_max_vcpu_total / float(hv_stats['hv_max_cores_total'])) * 100
 
+    vm_active_plus_inactive_total = vm_active_stats['vm_active_total'] + \
+                                    vm_inactive_stats['vm_inactive_total']
     vm_active_total_percent = (vm_active_stats['vm_active_total'] /
-                               float(vm_max_vcpu_total)) * 100
+                               float(vm_active_plus_inactive_total)) * 100
     vm_inactive_total_percent = (vm_inactive_stats['vm_inactive_total'] /
-                                 float(vm_max_vcpu_total)) * 100
+                                 float(vm_active_plus_inactive_total)) * 100
 
     print """
     ********hv stats*********************
@@ -205,39 +207,39 @@ def PrintReport(hv_stats, vm_active_stats, vm_inactive_stats):
     vm_active_max_mem_total = %d MB
     vm_active_max_vcpu_total = %d
     vm_active_total = %d
+    vm_active_total_percent = %.0f %%
     """ % (vm_active_max_mem_total,
           vm_active_stats['vm_active_max_vcpu_total'],
-          vm_active_stats['vm_active_total'])
-
+          vm_active_stats['vm_active_total'],
+          vm_active_total_percent,)
+          
     print """
     ********inactive vm stats************
     vm_inactive_max_mem_total = %d MB
     vm_inactive_max_vcpu_total = %d
     vm_inactive_total = %d
+    vm_inactive_total_percent = %.0f %%
     """ % (vm_inactive_max_mem_total,
           vm_inactive_stats['vm_inactive_max_vcpu_total'],
-          vm_inactive_stats['vm_inactive_total'])
+          vm_inactive_stats['vm_inactive_total'],
+          vm_inactive_total_percent)
 
     print """
     ********overall vm stats*************
     vm_max_mem_total = %d MB
     vm_max_vcpu_total = %d
+    vm_active_plus_inactive_total = %d
     vm_max_vcpu_total_percent = %.0f %%
-    vm_active_total_percent = %.0f %%
-    vm_inactive_total_percent = %.0f %%
     """ % (vm_max_mem_total,
           vm_max_vcpu_total,
-          vm_max_vcpu_total_percent,
-          vm_active_total_percent,
-          vm_inactive_total_percent)
+          vm_active_plus_inactive_total,
+          vm_max_vcpu_total_percent)
 
 
 def CloseHVConn(connlist):
     """Hypervisor connections should be closed for good programming."""
     for conn in connlist:
         conn.close()
-
-# forma
 
 
 def NotBeingUsedYet(num):
