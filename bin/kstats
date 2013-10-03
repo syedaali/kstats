@@ -22,7 +22,39 @@ def CheckArgs():
     """Must have a -h or a -i in order to continue."""
 
     parser = argparse.ArgumentParser(
-        description="KVM Stats", epilog="Beta software, use at your own risk", version='0.1')
+        description="Hypervisor Stats",
+        formatter_class=argparse.RawDescriptionHelpFormatter, epilog='''
+        Examples: 
+        kstats -i infile
+        kstats -r h[1-10].domain.com
+        The below stats are aggregated across all hypervisors
+        ********hv stats*********************
+        hv_max_mem_total = Total memory 
+        hv_free_mem_total = Total free memory 
+        hv_used_mem_total = Total used memory
+        hv_free_mem_total_percent = Free memory as a percent of total
+        hv_used_mem_total_percent = Used memory as a percent of total
+        hv_max_cores_total = Total number of cores added from each hypervisor
+  
+        ********active vm stats**************
+        vm_active_max_mem_total = Total memory allocated to active VMss
+        vm_active_max_vcpu_total = Total VCPU allocated to active VMss
+        vm_active_total = Total number of active VMs
+        vm_active_total_percent = Total active VM percent as compared to total active and inactive VM
+
+        ********inactive vm stats************
+        vm_inactive_max_mem_total = Total max memory allocated to inactive VMss
+        vm_inactive_max_vcpu_total = Total max VCPU allocated to inactive VMs
+        vm_inactive_total = Total number of inactive VMs
+        vm_inactive_total_percent = Total inactive VM percent as compared to total active and inactive VM
+
+        ********overall vm stats*************
+        vm_max_mem_total = Total memory of VMs both active and inactive combined
+        vm_max_vcpu_total = Total number of VCPUS allocated to both active and inactive VMs
+        vm_active_plus_inactive_total = Total number of active and inactive VMs
+        vm_max_vcpu_total_percent = Percentage of VCPUS allocated to active and inactive compared to total VCPU available
+        Beta software, use at your own risk''',
+        version='0.1')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
         '-i', action="store", help="filename for reading hosts from")
@@ -55,7 +87,8 @@ def GetHVConn(hvlist):
     username = getpass.getuser()
     for hv in hvlist:
         try:
-            conn_string = "qemu+ssh://" + username + "@" + hv + "/system"
+            conn_string = "qemu+ssh://" + username + \
+                "@" + hv + "/system?no_verify=1"
             conn = libvirt.open(conn_string)
             connlist.append(conn)
         except:
@@ -115,9 +148,9 @@ def GetActiveVMs(connlist):
             vm_active_max_mem = infos[1]
             vm_active_max_vcpu = infos[3]
             vm_active_stats['vm_active_max_mem_total'] += vm_active_max_mem
-            vm_active_stats['vm_active_max_vcpu_total'] += vm_active_max_vcpu    
+            vm_active_stats['vm_active_max_vcpu_total'] += vm_active_max_vcpu
         vm_active_stats['vm_active_total'] += len(conn.listDomainsID())
-    
+
     return vm_active_stats
 
 
@@ -150,7 +183,7 @@ def GetInactiveVMs(connlist):
             vm_inactive_stats[
                 'vm_inactive_max_vcpu_total'] += vm_inactive_max_vcpu
         vm_inactive_stats['vm_inactive_total'] += len(inactive_vms)
-    
+
     return vm_inactive_stats
 
 
@@ -181,7 +214,7 @@ def PrintReport(hv_stats, vm_active_stats, vm_inactive_stats):
         vm_max_vcpu_total / float(hv_stats['hv_max_cores_total'])) * 100
 
     vm_active_plus_inactive_total = vm_active_stats['vm_active_total'] + \
-                                    vm_inactive_stats['vm_inactive_total']
+        vm_inactive_stats['vm_inactive_total']
     vm_active_total_percent = (vm_active_stats['vm_active_total'] /
                                float(vm_active_plus_inactive_total)) * 100
     vm_inactive_total_percent = (vm_inactive_stats['vm_inactive_total'] /
@@ -212,7 +245,7 @@ def PrintReport(hv_stats, vm_active_stats, vm_inactive_stats):
           vm_active_stats['vm_active_max_vcpu_total'],
           vm_active_stats['vm_active_total'],
           vm_active_total_percent,)
-          
+
     print """
     ********inactive vm stats************
     vm_inactive_max_mem_total = %d MB
